@@ -50,12 +50,15 @@ class NotificationBadge: ObservableObject {
 class BackgroundRefreshManager: ObservableObject {
   @Published var shouldRefresh: Bool = false
   @Published var cachedNotifications: [GitHubNotification] = []
+  @Published var refreshInterval: TimeInterval = 60.0
   private var refreshTimer: Timer?
   private var cancellables = Set<AnyCancellable>()
   private weak var notificationBadge: NotificationBadge?
 
   init(notificationBadge: NotificationBadge) {
     self.notificationBadge = notificationBadge
+    // Load saved refresh interval
+    self.refreshInterval = PersistenceManager.shared.getRefreshInterval()
     // Load cached notifications on init
     loadCachedNotifications()
     startAutoRefresh()
@@ -68,14 +71,19 @@ class BackgroundRefreshManager: ObservableObject {
   }
 
   func startAutoRefresh() {
-    // Refresh every 60 seconds in the background
-    refreshTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
+    // Stop any existing timer first
+    stopAutoRefresh()
+
+    // Start new timer with current interval
+    refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) {
+      [weak self] _ in
       self?.performBackgroundRefresh()
     }
     // Keep the timer running even when menu is closed
     if let timer = refreshTimer {
       RunLoop.main.add(timer, forMode: .common)
     }
+    print("⏰ Auto-refresh started with interval: \(refreshInterval)s")
   }
 
   func stopAutoRefresh() {
@@ -85,6 +93,14 @@ class BackgroundRefreshManager: ObservableObject {
 
   func triggerRefresh() {
     shouldRefresh.toggle()
+  }
+
+  func setRefreshInterval(_ interval: TimeInterval) {
+    self.refreshInterval = interval
+    PersistenceManager.shared.setRefreshInterval(interval)
+    // Restart timer with new interval
+    startAutoRefresh()
+    print("⏰ Refresh interval updated to: \(interval)s")
   }
 
   private func loadCachedNotifications() {

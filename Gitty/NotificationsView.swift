@@ -288,6 +288,7 @@ struct NotificationsView: View {
 
   private func openSettingsWindow() {
     let settingsView = SettingsView()
+      .environmentObject(backgroundRefreshManager)
     let hostingController = NSHostingController(rootView: settingsView)
 
     let window = NSWindow(contentViewController: hostingController)

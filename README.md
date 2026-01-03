@@ -19,7 +19,7 @@ Gitty is a lightweight menu bar application for MacOS that provides quick access
 - Open notifications in your default web browser.
 - Simple and intuitive interface.
 - Store your GitHub token securely in Keychain.
-- Auto-refresh notifications every minute.
+- Auto-refresh notifications on a configurable interval in the background (default: every 1 minute).
 - Hiding organizations you don't want to see notifications from (e.g. work).
 
 ## Example Screenshots

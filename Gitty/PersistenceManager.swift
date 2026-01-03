@@ -15,6 +15,7 @@ class PersistenceManager {
   private let lastNotificationUpdatedAtKey = "last_notification_updated_at"
   private let cachedNotificationsKey = "cached_notifications"
   private let hiddenOrganizationsKey = "hidden_organizations"
+  private let refreshIntervalKey = "refresh_interval"
 
   private init() {}
 
@@ -178,5 +179,19 @@ class PersistenceManager {
   /// Clear all hidden organizations
   func clearHiddenOrganizations() {
     UserDefaults.standard.removeObject(forKey: hiddenOrganizationsKey)
+  }
+
+  // MARK: - Refresh Interval
+
+  /// Get the refresh interval in seconds (default: 60)
+  func getRefreshInterval() -> TimeInterval {
+    let interval = UserDefaults.standard.double(forKey: refreshIntervalKey)
+    // If not set or invalid, return default of 60 seconds
+    return interval > 0 ? interval : 60.0
+  }
+
+  /// Set the refresh interval in seconds
+  func setRefreshInterval(_ interval: TimeInterval) {
+    UserDefaults.standard.set(interval, forKey: refreshIntervalKey)
   }
 }

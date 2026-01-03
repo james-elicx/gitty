@@ -10,9 +10,11 @@ import SwiftUI
 
 struct SettingsView: View {
   @Environment(\.dismiss) var dismiss
+  @EnvironmentObject var backgroundRefreshManager: BackgroundRefreshManager
   @State private var organizations: [String] = []
   @State private var hiddenOrganizations: Set<String> = []
   @State private var launchAtLogin: Bool = false
+  @State private var refreshInterval: TimeInterval = 60.0
 
   var body: some View {
     VStack(spacing: 20) {
@@ -46,6 +48,30 @@ struct SettingsView: View {
               .onChange(of: launchAtLogin) { newValue in
                 setLaunchAtLogin(enabled: newValue)
               }
+
+            VStack(alignment: .leading, spacing: 8) {
+              HStack {
+                Text("Background Refresh Interval")
+                Spacer()
+                Picker("", selection: $refreshInterval) {
+                  Text("30 seconds").tag(30.0)
+                  Text("1 minute").tag(60.0)
+                  Text("2 minutes").tag(120.0)
+                  Text("5 minutes").tag(300.0)
+                  Text("10 minutes").tag(600.0)
+                  Text("15 minutes").tag(900.0)
+                }
+                .pickerStyle(.menu)
+                .frame(width: 120)
+                .onChange(of: refreshInterval) { _, newValue in
+                  backgroundRefreshManager.setRefreshInterval(newValue)
+                }
+              }
+
+              Text("How often to check for new notifications in the background")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
           }
           .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -149,6 +175,7 @@ struct SettingsView: View {
     .onAppear {
       loadOrganizations()
       launchAtLogin = isLaunchAtLoginEnabled()
+      refreshInterval = backgroundRefreshManager.refreshInterval
     }
   }
 
