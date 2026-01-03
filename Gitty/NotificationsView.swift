@@ -10,10 +10,10 @@ import SwiftUI
 struct NotificationsView: View {
   @ObservedObject var authViewModel: AuthViewModel
   @EnvironmentObject var notificationBadge: NotificationBadge
+  @EnvironmentObject var backgroundRefreshManager: BackgroundRefreshManager
   @State private var notifications: [GitHubNotification] = []
   @State private var isLoading: Bool = false
   @State private var errorMessage: String?
-  @State private var refreshTimer: Timer?
   @State private var hasLoadedOnce: Bool = false
   @State private var selectedRepository: String? = nil
   @State private var showingSettings: Bool = false
@@ -45,10 +45,19 @@ struct NotificationsView: View {
         // Subsequent loads: fetch with date-based pagination
         fetchNotifications()
       }
-      startAutoRefresh()
     }
-    .onDisappear {
-      stopAutoRefresh()
+    .onChange(of: backgroundRefreshManager.shouldRefresh) { _, _ in
+      // Trigger refresh when background manager signals
+      if hasLoadedOnce {
+        fetchNotifications()
+      }
+    }
+    .onChange(of: backgroundRefreshManager.cachedNotifications) { _, newNotifications in
+      // Update badge count when cached notifications change in background
+      if !newNotifications.isEmpty {
+        let unreadCount = newNotifications.filter { $0.unread }.count
+        notificationBadge.unreadCount = unreadCount
+      }
     }
     .onChange(of: showingSettings) { _, newValue in
       if newValue {
@@ -389,6 +398,8 @@ struct NotificationsView: View {
           withAnimation(.easeInOut(duration: 0.3)) {
             notifications.removeAll { $0.id == notification.id }
           }
+          // Update background manager's cached list
+          backgroundRefreshManager.updateNotifications(notifications)
           updateBadgeCount()
         }
       } catch {
@@ -425,6 +436,7 @@ struct NotificationsView: View {
                   subscribed: notification.subscribed
                 )
                 updateBadgeCount()
+                backgroundRefreshManager.updateNotifications(notifications)
               } else {
                 print("Warning: Could not find notification in array after marking as read")
               }
@@ -480,70 +492,9 @@ struct NotificationsView: View {
     }
   }
 
-  private func startAutoRefresh() {
-    // Refresh every 60 seconds
-    refreshTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { _ in
-      fetchNotifications()
-    }
-  }
-
-  private func stopAutoRefresh() {
-    refreshTimer?.invalidate()
-    refreshTimer = nil
-  }
-
   private func updateBadgeCount() {
     let unreadCount = visibleNotifications.filter { $0.unread }.count
     notificationBadge.unreadCount = unreadCount
-  }
-}
-
-// Model for GitHub notifications
-struct GitHubNotification: Identifiable, Equatable, Codable {
-  let id: String
-  let title: String
-  let repository: String
-  let type: String
-  let updatedAt: Date
-  let number: Int?
-  let reason: String?
-  let unread: Bool
-  let url: String?
-  let repositoryUrl: String?
-  let subscribed: Bool
-
-  var icon: String {
-    switch type {
-    case "Issue":
-      return "exclamationmark.circle.fill"
-    case "PullRequest":
-      return "arrow.triangle.pull"
-    case "Commit":
-      return "arrow.turn.up.right"
-    case "Release":
-      return "tag.fill"
-    case "CheckSuite":
-      return "checkmark.circle.fill"
-    case "Discussion":
-      return "bubble.left.and.bubble.right.fill"
-    default:
-      return "bell.fill"
-    }
-  }
-
-  var shouldShowNumber: Bool {
-    return type == "Issue" || type == "PullRequest"
-  }
-
-  var supportsSubscription: Bool {
-    // Only Issues and PullRequests reliably support subscriptions
-    return type == "Issue" || type == "PullRequest"
-  }
-
-  var timeAgo: String {
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .abbreviated
-    return formatter.localizedString(for: updatedAt, relativeTo: Date())
   }
 }
 
